@@ -1,0 +1,13 @@
+L ShuangLiu_Intl_Airport 3.0 5.0
+L Yi_Pin_Tian_Xia 1.0 3.0
+L CFDLS 1.0 1.0
+L Home 0.0 0.0
+L Long_Quan 0.0 15.0
+L Yi_Pin_Tian_Xia_Mid 1.0 2.0
+
+R Yi_Pin_Tian_Xia Airport_Hwy 2.9 NS ShuangLiu_Intl_Airport
+R CFDLS Yangxi_Lijiao 1.0 EW Yi_Pin_Tian_Xia_Mid
+R Yi_Pin_Tian_Xia_Mid Yangxi_Lijiao 1.0 EW Yi_Pin_Tian_Xia
+R Home Jinliang_Rd 1.42 EW CFDLS
+R ShuangLiu_Intl_Airport ShabiTunnel 12.0 EW Long_Quan
+R Home Tiancai_Rd 25 EW Long_Quan

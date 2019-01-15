@@ -1,0 +1,10 @@
+When I run test 08-staffTest, program 1 received a move from program 2(staff solution) and reported “* White wins” as required. However, program 2 is not responding after it received this message, causing the test to fail. Here’s the last few lines from the test result:
+[1]> > * i3-j3(j2)
+[2]< i3-j3(j2)
+[2]> > * d6-c6(d6)
+[1]< d6-c6(d6)
+[1]> > * White wins.
+[2]> > [1]> > 
+Program 1 ended with: time limit exceeded waiting for opponent
+
+In any other tests that involves two AI(my solution) playing against each other, the win messages are always successfully exchanged and the program quits with no problem. Please give me a hint on how to address this! Thank you. 

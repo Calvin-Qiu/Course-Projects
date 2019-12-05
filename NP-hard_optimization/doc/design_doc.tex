@@ -1,0 +1,45 @@
+\documentclass{article}
+\usepackage{amsmath, textcomp, amssymb, graphicx, enumitem}
+\usepackage{cancel, amssymb, fancyhdr, dsfont, titlesec, tikz}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{algorithmic}
+\usepackage[margin=1in]{geometry}
+\usepackage[italicdiff]{physics}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+\newcommand{\E}[1]{\mathbb{E}\bqty{#1}}
+\renewcommand{\Pr}[1]{\mathrm{Pr}\pqty{#1}}
+\newcommand{\Var}[1]{\mathrm{Var}\pqty{#1}}
+\newenvironment{qparts}{\begin{enumerate}[leftmargin=*,labelsep=0cm,align=left,label=(\alph*)]}{\end{enumerate}}
+\newenvironment{iparts}{\begin{enumerate}[leftmargin=*,labelsep=0cm,align=left,label=(\roman*)]}{\end{enumerate}}
+\def\endproofmark{$\Box$}
+\newenvironment{proof}{\par{\bf Proof}:}{\endproofmark\smallskip}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Shikai Qiu, Steven Deng, Roth Yin}
+\lhead{CS 170 Project Design Doc}
+\rfoot{Page \thepage}
+\begin{document}
+\section{A* search}
+We started with a naive application of A* algorithm on this problem. Given a list of locations $L,$ a list of homes of all TAs $H_0,$  the problem can be formulated as the following search problem:\\
+\indent$\cdot$ State space: $\{(v, H)| v \in L, H \subset H_0\}$ \\
+\indent$\cdot$ Starting state: $(s, H_0),$ where $s$ is the starting location\\
+\indent$\cdot$ Successor function: $(v, H) \mapsto \{(v', H')| v' \in \text{neighbour}(v), H' \subset H \}$\\
+\indent$\cdot$ Goal state: $(s, \emptyset),$\\
+\indent$\cdot$ Cost function: defined in the spec\\
+In principle, we can solve the problem exactly and guarantee optimality with A* search; However, a qualitative analysis of the size of the state space, which is $\order*{|L|2^{|H_0|}},$ and the branching factor for each state, which is also $\order*{|L|2^{|H_0|}},$ shows that we cannot possibly expect A* to terminate in any reasonable amount of time due to the exponential runtime bound $\order*{b^c},$ where $b$ is the branching factor and $c$ is the steps it takes for the optimal solution to reach the goal. Indeed, our implementation fails to terminate within hours even for on smallest inputs with $|L| = 20, |H| = 10.$  
+\section{Cluster search}
+To improve upon the naive A* search solver, we designed the following algorithm, which we will refer to as cluster search, that combines A* with a greedy algorithm to look for suboptimal solution efficiently. The main idea is to significantly reduce size of our state space and branching factors by breaking the problem down to the following(much easier) subproblems.\\
+1. Partition the set of locations into clusters of size at most 10, so that in each cluster there exists a center that is close to all other homes in this cluster. To do this, we first find a spanning tree of the graph, and delete edges to obtain a partition of the graph into connected components. Repeat until we find a satisfactory partition.\\
+2. For each cluster in the partition, run A* search to find a inner tour within the cluster starting at its center that sends home all TAs who live in this cluster.\\
+3. Find an approximate minimum outer tour starting at the starting location that go through the center of each cluster.\\
+4. Piece together the outer tour with all inner tours to obtain a solution to the original problem.\\
+The cluster search solver performs much better than the naive A* search solver, and can find an approximate solution within 2 minutes on average for randomly generated valid inputs of all legal sizes. Compared to randomly generate solutions, cluster search produce an energy cost 30 times lower, averaging over inputs of  various sizes.
+\section{Reduction}
+After preliminary analysis of the problem complexity, we believe the problem to be NP-hard as there likely exists a reduction from the travelling salesman problem to it. In phase 2, we will attempt to reduce the problem into some NP-complete problems, after which we can make use of available approximate solvers to look for better solutions. Potential reductions that we currently consider include Integer Linear Programming, Minimum Set Cover, and Travelling Salesman Problem.
+\section{Miscellaneous}
+1. The hybrid of different methods might work. This idea could mean that we have mechanisms to choose algorithm based on the characteristics of the specific inputs. It could also be in the context of one algorithm as illustrated as a preliminary thought below. Even if we do not adopt the most rigorous reduction, some approximate translation into one of the extensively studied NP-complete problems could be helpful. For example, we might be able to utilize the idea of clustering to group the homes into large vertices representing regions. By solving the TSP with the regional vertices, we might be able to gain ideas about the overall route of the car. Within each regional vertex, due to the definable size of these subproblems, we have more freedom on leveraging between the time expense and optimality, namely to use deterministic search methods. There have been extensive discussions about techniques such as Regional TSP and local optimization to draw ideas from.
+2. To avoid staying in a local optimum, tabu search can be adopted. This means to sometimes relax the update requirements to allow worsening and to prevent the solver to go back to a previous suboptimal state. If augmented to be a complete algorithm of itself, it would become something like Genetic Algorithm, more skillful than randomized methods in that it possesses the bio-inspired mutation, crossover and selection.
+\end{document}

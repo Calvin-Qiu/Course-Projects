@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }
+    body {
+    padding-right: 100px;
+    padding-left: 100px;
+    font-weight: 300;
+    font-family: Helvetica;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: Helvetica;
+  }
+  </style>
+<title>Shikai Qiu  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3: PathTracer</h1>
+    <h2 align="middle">Shikai Qiu</h2>
+
+        <p> In this project, I implement some core routines of a physically-based renderer using a pathtracing algorithm, relying on ray-scene intersection, acceleration using Bounding Volume Hierarchy, and physically based lighting effects. Sampling is used heavily to evaluate integrals efficiently and accurately. Importance sampling is used to evaluate radiance integrals with reduced variance, while Russian Roulette is used to create unbiased estimators for infinite-dimensional path integrals over light trajectories. </p>
+
+    <h2 align="middle">Part 1: Mirror and Glass Materials</h2>
+        <p>By implementing the BSDFs for mirror and glass materials, we are able to render scences such as the following where two glass spheres both reflect and refract light. We can observe the added effects as we increase max_ray_depth from 0 to 100. With depth = 0, we see only emitting light source, which is the area light on the ceiling.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-0.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 0</figcaption>
+                </tr>
+            </table>
+        </div>
+<p>With depth = 1, we can see the light reflecting off the walls and the surfaces of the spheres.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-1.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 1</figcaption>
+                </tr>
+            </table>
+        </div>
+<p>With depth = 2, we can see the light: reflecting from the ceiling, reflecting from one sphere to another and then into the camera(with a delay of one iteration for the reflected image).</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-2.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 2</figcaption>
+                </tr>
+            </table>
+        </div>
+<p>With depth = 3, we can see the light reflected from the left sphere exiting the sphere on the right and the illumination on the ground by the light refracted through the right sphere from the light source.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-3.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 3</figcaption>
+                </tr>
+            </table>
+        </div>
+<p>With depth = 4, we can see the light that just exited the right sphere has hit the wall on the right forming a white spot. This also means the illumination on the ground under the right sphere is also increased by the light reflecting from the left sphere.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-4.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 4</figcaption>
+                </tr>
+            </table>
+        </div>
+<p>With depth = 5, the image has essentially converged and no main feature has changed except for minor details in the mutual reflection of the two spheres which will keep on updating forever.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-5.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 5</figcaption>
+                </tr>
+            </table>
+        </div>
+
+<p>With depth = 100, the image has essentially converged. The only noticeable different from depth = 5 is the overall illuminance which has increased due to the 95 non-negative terms we just added to the series.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-100.png" width="600px" />
+                    <figcaption align="middle">max_ray_depth = 100</figcaption>
+                </tr>
+            </table>
+        </div>
+<h2 align="middle">Part 4: Depth of Field</h2>
+        <p> Here we implemented the ideal thin lens to replace the pinhole camera model for more realistic images. The thin lens model allows each pixel on the sensor to receive a wider range of light rays from the scene. In particular, if an object is out of focus, different rays coming from the object will not converge to one point on the sensor, thus creating a blurred part of the image that gives rise to the depth of field. Here we show this effect by comparing different focal lengths d and aperture sizes b.</p>
+
+<h3 align="middle">Varying focal length</h3>
+ <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-3.png" width="600px" />
+                    <figcaption align="middle">b = 0.1 d = 3.5 everything is out of focus(too short)</figcaption>
+                </tr>
+            </table>
+        </div>
+
+<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-2.png" width="600px" />
+                    <figcaption align="middle">b = 0.1 d = 4.45 focus is on the right sphere</figcaption>
+                </tr>
+            </table>
+        </div>
+
+<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-1.png" width="600px" />
+                    <figcaption align="middle">b = 0.1 d = 5 focus is on the left sphere</figcaption>
+                </tr>
+            </table>
+        </div>
+
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-4.png" width="600px" />
+                    <figcaption align="middle">b = 0.1 d = 6.5 focus is beyond the back wall(too long)</figcaption>
+                </tr>
+            </table>
+        </div>
+
+<h3 align="middle">Varying aperture size</h3>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-7.png" width="600px" />
+                    <figcaption align="middle">b = 0.0125 d = 5 very large depth of field</figcaption>
+                </tr>
+            </table>
+        </div>
+
+
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-1.png" width="600px" />
+                    <figcaption align="middle">b = 0.1 d = 5 medium depth of field</figcaption>
+                </tr>
+            </table>
+        </div>
+
+
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-5.png" width="600px" />
+                    <figcaption align="middle">b = 0.4 d = 5 short depth of field</figcaption>
+                </tr>
+            </table>
+        </div>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-6.png" width="600px" />
+                    <figcaption align="middle">b = 0.8 d = 5 extremely short depth of field</figcaption>
+                </tr>
+            </table>
+        </div>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <script>
+            MathJax = {
+              tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+              },
+              svg: {
+                fontCache: 'global'
+              },
+            };
+        </script>
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        <script id="MathJax-script" async
+                  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+        </script>
+        <style>
+            div.padded {
+              padding-top: 0px;
+              padding-right: 100px;
+              padding-bottom: 0.25in;
+              padding-left: 100px;}
+            body {
+            padding-right: 100px;
+            padding-left: 100px;
+            font-weight: 300;
+            font-family: SansSerif;
+            color: #121212;
+          }
+          h1, h2, h3, h4 {
+            font-family: SansSerif;
+          }
+          </style>
+
+        <title>Shikai Qiu  |  CS 184</title>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+    </head>
+    <body>
+        <br />
+        <h1 align="middle">Relativistic Ray Tracing</h1>
+        <h2 align="middle">Shikai Qiu</h2>
+        <br />
+        <h2 align="left">Abstract</h2>
+        <p> Relativistic effects arise when the camera is in relative motion with the scene and will become significant when the speed is comparable to the speed of light. As motion close to the speed of light is rarely encountered during everyday life, a photorealistic renderer capable of rendering relativistic effects allow us to observe and appreciate these effects that are otherwise inaccessible. It is the goal of this project to extend the path tracer from project 3-1 to one that correctly incorporates relativistic effects.  For simplicity, we will work in flat spacetime and deal with special relativity only, where light travels in straight lines in any inertial frame thanks to the absence of gravity. In the end, our rendered images will reflect well-known effects such as length contraction and relativistic doppler shift.
+        </p>
+        $\newcommand{\w}{\omega}
+        \newcommand{\k}{k^\mu}
+        \newcommand{\vk}{\vec{k}}
+        \newcommand{\vx}{\vec{x}}
+        \newcommand{\L}{\mathcal{L}}
+        \newcommand{\tr}{\mathrm{tr}}
+        \newcommand{\x}{x^\mu}
+        \newcommand{\b}{\vec{\beta}}
+        \newcommand{\E}{\mathcal{E}}$
+        <h2 align="left">Notation</h2>
+        <p>$c$ the speed of light.</p>
+        <p>$\b = \vec{v} / c$ velocity divided by the speed of light.</p>
+        <p>$\gamma = 1 / \sqrt{1 - \beta^2}$.</p>
+        <p>$\x = (ct, \vec{x})$ a 4-vector that specifies a point in spacetime.</p>
+        <p>$\k = (c\w, \vec{k})$ a four wave-vector specifying a frequency and direction of propagation.</p>
+        <p>$\E(\x)$ the irradiance at a point.</p>
+        <p>$\L(\x, \vec{k}, \lambda)$ the (outgoing) radiance at a point with a given wavelength and direction.</p>
+        <p>$\tr$ the trace operator in ray tracing.</p>
+        <p>The superscript $\mu$ for 4 vectors will sometimes be suppressed without ambiguity as 3 vectors always have arrows on top.</p>
+        <br />
+        <h2 align="left">Geometry</h2>
+        <p> In this part, we will focus on the geometric effects that arises when the camera is in motion with respect to the scene. Previously, in the wavelength-independent path tracer, the irradiance at a point $x$ is given by:
+            $$ \E(x) = \int d^2\vk \> \cos(\theta) \L(\tr(x, \vk), -\vk). $$
+        In the case of a pin-hole camera with $x$ a point on the sensor and $k$ the direction from the point to the pinhole,  we can make the approximation that was used in the project 3-1 implementation, assuming small $\theta$ for all $x$:
+            $$ \E(x) \propto \L(\tr(x, \vk), -\vk). $$
+        In order to render a photo taken in the camera frame at time $t'$, we need to evaluate $\E'(x')$, the irradiance at $x'$ in the the camera frame, for each $x'$ on the sensor at $t'$. We start by transforming $x'$ into its value in the lab frame(frame in which the scene is stationary) denoted by $x$. This transformation is given by the Lorentz transformation:
+            $$x' = \Lambda x$$
+            $$x = \Lambda^{-1} x'$$
+            $$\Lambda = \begin{pmatrix}
+\gamma&            -\gamma\beta_x&            -\gamma\beta_y&            -\gamma\beta_z\\
+-\gamma\beta_x& 1+(\gamma-1)\beta_x\beta_x/\beta^2&   (\gamma-1)\beta_x\beta_y/\beta^2&   (\gamma-1)\beta_x\beta_z/\beta^2\\
+-\gamma\beta_y&   (\gamma-1)\beta_x\beta_y/\beta^2& 1+(\gamma-1)\beta_y\beta_y/\beta^2&   (\gamma-1)\beta_y\beta_z/\beta^2\\
+-\gamma\beta_z&   (\gamma-1)\beta_x\beta_z/\beta^2&   (\gamma-1)\beta_z\beta_y/\beta^2& 1+(\gamma-1)\beta_z\beta_z/\beta_2
+            \end{pmatrix}$$
+         Using the Lorentz transformation, we can estimate the camera frame irradiance as follows:
+            $$ \E'(x') \approx \E(\Lambda^{-1}x')$$
+         This is approximation can give us the wrong color and brightness for reasons which we will discuss later. Nevertheless, it will allow as to render images with the correct geometry.
+        </p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-1.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-1: $ct = 5$ $\b = (0, 0, 0) $ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/1-2.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-2: $ct = 5$ $\b = (0.5, 0, 0)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-3.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-3: $ct = 5$ $\b = (0.75, 0, 0)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/1-4.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-4: $ct = 5$ $\b = (0.99, 0, 0)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-5.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-5: $ct = 5$ $\b = (0, 0.75, 0)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/1-6.png" width="480px" />
+                    <figcaption align="middle">Fig. 1-6: $ct = 5$ $\b = (0, 0.99, 0)$ </figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <p>At $t=0$, the camera is at its initial position specified by the input files. The caption for each image indicates the camera-frame time at which the photo is taken and the velocity of the camera observed in the lab frame. Lorentz transformation predicts that space will be contracted in the direction of relative motion. In Fig. 1-4, we can clearly see that is indeed the case. We also see that the box appears to be non-linearly deformed, which can not be a result of Lorentz transformation as it is a linear transformation. Rather, this effect arises because light from different points on the object takes different amount of time to reach the sensor, which can introduce non-linearity in the resulted image. This also explains why the right wall of the box appears to be displaced further towards the $x$ direction as we move towards the back, because as we trace a ray deeper into the scene, we also go further back in time. </p>
+        <br />
+        <h2 align="left">Relativistic Doppler shift</h2>
+        As mentioned earlier, so far our path tracer only guarantees the correct geometry of the rendered image. Special relativity predicts that the wavelength of light will change depending on the relative motion between an observer and the light source. In particular, one can show from the fact that four wave vector $\k = (c\w, \vec{k})$ transforms as a four vector that
+        $$\w' = \frac{1}{\alpha(\hat{k'})}\w$$
+        $$\lambda' = {\alpha(\hat{k'})}\lambda$$
+        $$\alpha(\hat{k'}) := \gamma(1+\hat{k'}\cdot\b)$$
+        This shift in frequency is known as the relativistic Doppler shift. To implement this effect, we must first extend our path tracer to perform wavelength dependent ray tracing. We make the following design choices:
+        <p> $\cdot\>$ $\L(x, \vk, \lambda) \propto \L(x, \vk)$  light source emits with a constant spectrum distribution over all wavelength(one might argue this is unphysical, but we can do so for simplicity).</p>
+        <p> $\cdot\>$ Approximate human eye response functions $r_{\mathrm{color}}(\lambda)$ with normal distributions $\mathcal{N}(\mu_\mathrm{color}, \sigma_\mathrm{color}).$ </p>
+        <p> $\cdot\>$ $(\mu_\mathrm{red}, \mu_\mathrm{green}, \mu_\mathrm{blue}) = (600, 550, 450)$ </p>
+        <p> $\cdot\>$ $(\sigma_\mathrm{red}, \sigma_\mathrm{green}, \sigma_\mathrm{blue}) = (25, 25, 15)$ </p>
+        <p> $\cdot$ Wavelength remains unchanged before and after scattering, namely $f(x, \vk, \vec{k'}, \lambda, \lambda') = f(x, \vk, \vec{k'}, \lambda) \delta(\lambda - \lambda')$, so that the rendering equation simplifies and has the same form as the wavelength-independent one:
+            $$ \L(x, \vec{k}, \lambda) = \int d^2\vec{k'}\> \cos(\theta') \int d\lambda'\> f(x, \vk, \vec{k'}, \lambda, \lambda') \L(\tr(x, \vec{k'}, -\vec{k'}, \lambda') = \int d^2\vec{k'}\> \cos(\theta') f(x, \vk, \vec{k'}, \lambda) \L(\tr(x, \vec{k'}), -\vec{k'}, \lambda) $$
+        </p>
+        <p> $\cdot\>$ Construct wavelength dependent BSDF $f$ according to the $(r, g, b)-$valued BSDF $\vec{f}$ as follows:
+            $$f(x, \vk, \vec{k'}, \lambda) \propto \sum_{i\in\{r,\> g,\> b\}} f_i(x, \vk, \vec{k'}) g_i(\lambda, f_i(x, \vk, \vec{k'})/|f|^{1/2}) $$
+            $$g_i(\lambda, f) = \frac{1}{\sqrt{2\pi\tilde{\sigma}_i^2}} e^{-(\lambda-\mu_i)^2/2\tilde{\sigma}_i^2} \quad\tilde{\sigma}_i = \sigma_i / f$$
+        </p>
+        The above definitions provide everything we need for wavelength dependent ray tracing. Our final equation for obtaining the RGB value $\vec{\psi'}=(r,g,b)$ for each pixel $p$ in the camera frame then follows:
+        $$\begin{align*}\vec{\psi'}(t') &= \int_{\mathrm{pixel}} d^2\vec{x'}\> \int d\lambda'\> \vec{r}(\lambda') \E'(x', \lambda')\\
+        &\approx \int_{\mathrm{pixel}} d^2\vec{x'}\> \int d\lambda'\> \vec{r}(\lambda') \E(\Lambda^{-1} x, \lambda'/\alpha(\hat{k'})) &&\text{where } \vec{k}' \text{points from } \vec{x}' \text{to the pinhole in the camera frame}\\
+        &\propto \int_{\mathrm{pixel}} d^2\vec{x'}\> \int d\lambda'\> \vec{r}(\lambda') \L(\tr(\vec{x}, \vec{k}), -\vec{k}, \lambda)\\
+        &= \mathbb{E}_{x' \sim p(x')}\left[ \frac{1}{p(x')} \mathbb{E}_{\lambda' \sim p(\lambda')}\left[ \frac{1}{p(\lambda')} \vec{r}(\lambda') \L(\tr(\vec{x}, \vec{k}), -\vec{k}, \lambda)\right]\right]
+        \end{align*} $$
+        Here in line 2 we used $\E'(x',\lambda') \approx \E(\Lambda^{-1} x, \lambda'/\alpha(\hat{k'}))$ as motivated by the transformation properties of $x'$ and $k'$, in line 3 we used the pinhole and small angle approximation as before, and in line 4 we used Monte-Carlo integration. The expression in the last line explicitly shows how the new algorithm is implemented. In essence, the only difference from the original path tracer is the addition of a round of sampling over wavelength for each point on the sensor, and an application of Lorentz transformation for each sampled ray to obtain the lab frame sensor coordinates, wave propagation direction, and wavelength.
+         <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-1.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-1: wavelength-independent $ct = 0$ $\b = (0, 0, 0)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-2.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-2: wavelength-dependent $ct = 0$ $\b = (0, 0, 0)$ </figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <p>Fig. 2-1 and 2-2 shows a comparison between the image rendered by our wavelength-dependent path tracer and the image rendered by the original implementation from project 3-1 that uses $(r, g, b)$-only representation through out the pipeline. Our current parameters do not exactly reproduce the color but is qualitatively correct.</p>
+        <p>We now move on to demonstrate the relativistic Doppler shift.</p>
+         <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-3.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-3: $ct = 1$ $\b = (0, 0, -0.5)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-4.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-4: $ct = 1$ $\b = (0, 0, -0.4)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-5.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-5: $ct = 5$ $\b = (0, 0, -0.3)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-6.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-6: $ct = 5$ $\b = (0, 0, -0.2)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-7.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-7: $ct = 5$ $\b = (0, 0, -0.1)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-8.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-8: $ct = 6$ $\b = (0, 0, 0.1)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-9.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-9: $ct = 6$ $\b = (0, 0, 0.2)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-10.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-10: $ct = 6$ $\b = (0, 0, 0.3)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-11.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-11: $ct = 6$ $\b = (0, 0, 0.4)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-12.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-12: $ct = 6$ $\b = (0, 0, 0.5)$ </figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        As predicted by Special Relativity, the wavelength spectrum in the camera frame is red shifted if the source is moving away from the camera and blue shifted if the source is moving towards the camera. Since the emission spectrum of the ceiling light is a constant over all wavelength by design, it does not look any different in the camera frame regardless of the relative motion. As the relative speed becomes too large, the scene will look darker and darker because the BSDF we defined only scatters light close to the visible spectrum. Therefore, as the speed gets larger, the spectrum coming from the scene gets shifted farther away from the visible spectrum and the camera sensor will no longer be sensitive to those wavelengths. We further show some more images where both Lorentz contraction and Doppler shift are visible.
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-13.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-13: $ct = 5$ $\b = (0.25, 0, 0) $ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-14.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-14: $ct = 5$ $\b = (0.5, 0, 0)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-15.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-15: $ct = 5$ $\b = (0.75, 0, 0)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-16.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-16: $ct = 5$ $\b = (0, 0.25, 0)$ </figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-17.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-17: $ct = 5$ $\b = (0, 0.5, 0)$ </figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/2-18.png" width="480px" />
+                    <figcaption align="middle">Fig. 2-18: $ct = 5$ $\b = (0, 0.75, 0)$ </figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <br />
+        <h2 align="left">Other corrections</h2>
+        One can incorporate additional corrections for added realism. We have not implemented these corrections as they will not be as visually striking, but we mention them here for completeness. Recall we used the following approximation in our derivation above:
+        $$\E'(x',\lambda') \approx \E(\Lambda^{-1} x, \lambda'/\alpha(\hat{k'})).$$
+        One can show from a simple argument based on photon counting, that the right hand side needs to be multiplied by a correction factor $\eta$ to be exact, where
+        $$\eta = \delta / \alpha^2(\hat{k'})$$
+        $$\delta = \frac{d^2\vec{x}}{d^2\vec{x}'} \qquad \text{ratio between differential sensor area as observed in lab and camera frame}.$$
+        The $\alpha^2$ factor comes in due to an overall scaling of the transformed spectrum distribution which we ignored, along with an application of the Plank-Einstein relation $E = \hbar\nu.$ The $\delta$ factor comes in due to the fact that area is not invariant under Lorentz transformation so that the sensor can appear to have a different size in the lab frame.
+        <br />
+        <h2 align="left">Contributions</h2>
+        Shikai Qiu
+        <br />
+        <h2 align="left">References</h2>
+        <p>[1]https://en.wikipedia.org/wiki/Lorentz_transformation</p>
+        <p>[2]https://en.wikipedia.org/wiki/Spectral_sensitivity</p>
+        <p>[3]https://people.eecs.berkeley.edu/~cecilia77/graphics/a6/#</p>
+    </body>
+</html>
+
+
+
+

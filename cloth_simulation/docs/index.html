@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: Helvetica;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: Helvetica;
+  }
+</style>
+<title>CS 184 Mesh Editor</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Summer 2020</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Shikai Qiu</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p> In this project, I implement a real-time simulation of cloth using a mass and spring based system. I build the data structures to discretely represent the cloth, define and apply physical constraints on them, and apply numerical integration to simulate the way cloth moves over time. Furthermore, I implement collisions with other objects as well as self-collisions to prevent cloth clipping. Finally, I implement various shaders that enable more photo realistic rendering of the cloth. </p>
+
+<h2 align="middle">Part I: Masses and springs</h2>
+	<p> In this part, I implement a function that takes in the cloth's parameters and constructs a representation for its mass distribution and structural constraint with point masses and interconnected springs. </p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-1.png" width="480px" />
+                    <figcaption align="middle">The complete wireframe</figcaption>
+                    <td align="middle">
+                    <img src="images/1-3.png" width="480px" />
+                    <figcaption align="middle">The wireframe with only structural and bending constraint</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/1-4.png" width="480px" />
+                    <figcaption align="middle">The wireframe with only sheering constraint</figcaption>
+                    <td align="middle">
+                    <img src="images/1-2.png" width="480px" />
+                    <figcaption align="middle">The wireframe with all three constraints</figcaption>
+                </tr>
+            </table>
+        </div>
+
+	<h2 align="middle">Part II: Simulation via numerical integration</h2>
+	<p> In this part, I implement Position-based Verlet Integration that specifies the motion of the cloth by solving Newton's equation of motion given stability constraints. Below illustrates how parameters such as spring constants, mass density, and damping factor affect the behavior of the cloth. </p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-2.png" width="480px" />
+                    <figcaption align="middle"> ks = 5 N/m, in equilibrium</figcaption>
+                    <td align="middle">
+                    <img src="images/2-1.png" width="480px" />
+                    <figcaption align="middle"> ks = 50000 N/m, in equilibrium</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/2-3.png" width="480px" />
+                    <figcaption align="middle"> density = 1 g/cm^2, in equilibrium  </figcaption>
+                    <td align="middle">
+                    <img src="images/2-4.png" width="480px" />
+                    <figcaption align="middle"> density = 10000 g/cm^2, in equilibrium </figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/2-5.png" width="480px" />
+                    <figcaption align="middle"> damping = 0%, end of the first oscillation</figcaption>
+                    <td align="middle">
+                    <img src="images/2-6.png" width="480px" />
+                    <figcaption align="middle"> damping = 20%, end of the first oscillation </figcaption>
+                </tr>
+            </table>
+        </div>
+	<p>As we can see, increasing the spring constants makes the cloth more rigid in equilibrium, increasing the density makes the cloth elongate more in the downward direction in equilibrium, and increasing the damping factor brings the cloth to stop in fewer number of oscillations.  </p>
+	<h2 align="middle">Part III: Handling collisions with other objects</h2>
+	<p> In this part, I add support for cloth collision with other objects in the scene including spheres and planes. The following screenshots illustrate the effects. </p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/3-2.png" width="480px" />
+                    <figcaption align="middle">ks = 500 N/m</figcaption>
+                    <td align="middle">
+                    <img src="images/3-1.png" width="480px" />
+                    <figcaption align="middle">ks = 5000 N/m</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/3-3.png" width="480px" />
+                    <figcaption align="middle">ks = 50000 N/m</figcaption>
+                    <td align="middle">
+                    <img src="images/3-4.png" width="480px" />
+                    <figcaption align="middle">Collision with a plane</figcaption>
+                </tr>
+            </table>
+        </div>
+	<p>As we increase the spring constants, the cloth becomes more rigid. More precisely, the minimal energy configuration is a compromise between minimizing the gravitational potential energy and minimizing the potential energy of the spring system. Therefore, with higher spring constants, the cloth prefers a less stretched state over a lower center-of-mass state.</p>
+	<h2 align="middle">Part IV: Handling self-collisions</h2>
+	<p> In this part, I add support for self-collision of the cloth based on spatial hashing. The effects are shown below.</p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-1.png" width="480px" />
+                    <td align="middle">
+                    <img src="images/4-2.png" width="480px" />
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/4-3.png" width="480px" />
+                    <td align="middle">
+                    <img src="images/4-4.png" width="480px" />
+                </tr>
+            </table>
+		<figcaption align="middle">The cloth folds onto itself</figcaption>
+        </div>
+	<p> As illustrated below, increasing the spring constant or decreasing the density makes the spring bend less as it falls on to itself because the internal forces of the cloth will overcome the tendency of the cloth to collapse onto itself under gravity.</p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-5.png" width="480px" />
+                    <figcaption align="middle">ks = 500 N/m</figcaption>
+                    <td align="middle">
+                    <img src="images/4-6.png" width="480px" />
+                    <figcaption align="middle">ks = 50000 N/m</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/4-7.png" width="480px" />
+                    <figcaption align="middle">density = 1500 g/cm^2</figcaption>
+                    <td align="middle">
+                    <img src="images/4-8.png" width="480px" />
+                    <figcaption align="middle">density = 1.5 g/cm^2</figcaption>
+                </tr>
+            </table>
+        </div>
+	<h2 align="middle">Part V: Shaders</h2>
+	<p> Here I implement several shader programs. A shader program is composed of a vertex shader and a fragment shader. A vertex shader process each vertex and outputs information for the fragment shader to interpolate over each fragments, such as normal vectors and texture coordinates. </p>
+	<p> Blinn-Phong shading: This model uses surface normal vector, light position, and viewing direction to calculate diffuse and specular components of the outgoing radiance. The diffuse component is independent of viewing direction while the specular component can be. An additional ambient component is also allowed as an additive constant to the outgoing radiance. </p>
+	<div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-1.png" width="480px" />
+                    <figcaption align="middle">Ambient only</figcaption>
+                    <td align="middle">
+                    <img src="images/5-2.png" width="480px" />
+                    <figcaption align="middle">Diffuse only</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/5-3.png" width="480px" />
+                    <figcaption align="middle">Specular only</figcaption>
+                    <td align="middle">
+                    <img src="images/5-4.png" width="480px" />
+                    <figcaption align="middle">Combined</figcaption>
+                </tr>
+            </table>
+        </div>
+    <p> Texture mapping, bump mapping, and displacement mapping are also implemented and shown below. </p>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-5.png" width="800px" />
+                    <figcaption align="middle">Texture mapping using the Microwave Background Radiation</figcaption>
+                </tr>
+				<tr>
+                    <td align="middle">
+                    <img src="images/5-6.png" width="800px" />
+                    <figcaption align="middle">Bump mapping on the cloth</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-7.png" width="800px" />
+                    <figcaption align="middle">Bump mapping on the sphere</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-8.png" width="800px" />
+                    <figcaption align="middle">Displacement mapping on the sphere</figcaption>
+                </tr>
+            </table>
+        </div>
+    <p> Bump mapping and displacement mapping results in almost identical shading because the normal vector field is the same at each vertex. But a closer examination below shows how the two have visibly different effects on the geometry of the object. In particular, when the mesh is coarse, the displacement mapping introduces low-frequency deformation to the object that does not accurately reflect the prescribed height field. When the mesh is less coarse, displacement mapping introduces high-frequency deformation to the object while bump mapping leaves the geometry of the object invariant. </p>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-11.png" width="430px" />
+                    <figcaption align="middle">Bump mapping on a coarse mesh</figcaption>
+                    <td align="middle">
+                    <img src="images/5-12.png" width="430px" />
+                    <figcaption align="middle">Displacement mapping on a coarse mesh</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-9.png" width="430px" />
+                    <figcaption align="middle">Bump mapping on a refined mesh</figcaption>
+                    <td align="middle">
+                    <img src="images/5-10.png" width="430px" />
+                    <figcaption align="middle">Displacement mapping on a refined mesh</figcaption>
+                </tr>
+            </table>
+        </div>
+    <p>Finally, I implement the mirror shader whose effect is shown below.</p>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-13.png" width="800px" />
+                    <figcaption align="middle">Mirror shading on a sphere</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-14.png" width="800px" />
+                    <figcaption align="middle">Mirror shading on a cloth</figcaption>
+                </tr>
+        </div>
+</body>
+</html>

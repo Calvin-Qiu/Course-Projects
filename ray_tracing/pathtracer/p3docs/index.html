@@ -1,0 +1,225 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }
+    body {
+    padding-right: 100px;
+    padding-left: 100px;
+    font-weight: 300;
+    font-family: Helvetica;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: Helvetica;
+  }
+  </style> 
+<title>Shikai Qiu  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3: PathTracer</h1>
+    <h2 align="middle">Shikai Qiu</h2>
+
+        <p> In this project, I implement some core routines of a physically-based renderer using a pathtracing algorithm, relying on ray-scene intersection, acceleration using Bounding Volume Hierarchy, and physically based lighting effects. Sampling is used heavily to evaluate integrals efficiently and accurately. Importance sampling is used to evaluate radiance integrals with reduced variance, while Russian Roulette is used to create unbiased estimators for infinite-dimensional path integrals over light trajectories. </p>
+
+    <h2 align="middle">Part 1: Ray Generation and Intersection</h2>
+        <p>Ray generation and primitive intersection are the most basic components in ray tracing. In ray generation, rays passing through points uniformly distributed over a pixel are generated for evaluating the integral of radiance over the pixel. For each ray, its intersection with the scene is determined by the primitive intersection algorithms. In case of triangles and spheres, these algorithms can be simple and exact. </p>
+        <p> The triangle intersection algorithm is implemented by finding the parameter t for which the ray intersects the triangle and the barycentric coordinates of the intersection via the M̈oller-Trumbore algorithm. It claims a valid intersection if and only if the t value if between the minimum and maximum allowed t value of the ray and that all three barycentric coordinates are between 0 and 1.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/1-1.png" width="480px" />
+                    <figcaption align="middle">Spheres with normal shading</figcaption>
+                    <td align="middle">
+                    <img src="images/1-2.png" width="480px" />
+                    <figcaption align="middle">Gems with normal shading</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h2 align="middle">Part 2: Bounding Volume Hierarchy</h2>
+        <p>The BVH construction algorithm constructs a binary BVH-tree recursively. In each call starting from the root, the algorithm checks whether the current number of primitives is within a maximum value. If so, the current node is set to a leaf, with all current primitives saved to a member variable of the node. Otherwise the algorithm recursively constructs a left and right node by splitting the list of primitives into two. A primitive will either go to the left node or the right node based on whether the coordinate of its centroid is greater than that of the mid point of the current bounding box along its longest axis.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-1.png" width="480px" />
+                    <figcaption align="middle">A blob with normal shading</figcaption>
+                    <td align="middle">
+                    <img src="images/2-2.png" width="480px" />
+                    <figcaption align="middle">CBlucy with normal shading</figcaption>
+                </tr>
+            </table>
+        </div>
+        <p> The BVH significantly reduces the rendering time as is evident from testing on the two following moderately complex geometries with 8 threads and 800 * 600 resolution and default for all other options. </p>
+        <p>beetle.dae: Without BVH: 45.44 seconds in total, 1639.4 intersection tests per ray; With BVH: 0.055s seconds in total, 1.76 intersection tests per ray.</p>
+        <p>cow.dae: Without BVH: 58.31 seconds in total, 2143.0 intersection tests per ray; With BVH: 0.08s seconds in total, 2.74 intersection tests per ray.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/2-3.png" width="480px" />
+                    <figcaption align="middle">A beetle with normal shading</figcaption>
+                    <td align="middle">
+                    <img src="images/2-4.png" width="480px" />
+                    <figcaption align="middle">A cow with normal shading</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h2 align="middle">Part 3: Direct Illumination</h2>
+    <p> In this part, I implemented two methods for direct lighting: Uniform Hemisphere Sampling and Importance Sampling over Lights. </p>
+    <p> In Uniform Hemisphere Sampling, we estimate the direct lighting integral at a ray-scene intersection in a certain outgoing direction by performing uniform sampling over the unit hemisphere pointed to by the surface normal vector. For each sampled direction, we trace another ray along it and find the first intersection with the scene and record the emitted radiance at that point along the reverse ray. The average of all such sampled radiance multiplied by the appropriate BSDFs, cosine values, and a normalization factor equal to the inverse probability is returned as the Monte Carlo estimate for the integral. </p>
+    <p> In Importance Sampling over Lights, the algorithm is only different at the sampling method. Instead of uniform random sampling, we sampling only from light sources by tracing shadow rays from each light source to the intersection of interest. When the shadow ray is unobstructed by other objects, we add the sampled radiance from the light source weighted by the inverse probability density for the sampled direction to the estimate, and normalize at the end. </p>
+    <p> The following 4 images are generated with 1 sample per pixel and 1, 4, 16, and 64 sample(s) per area light respectively. We see a significant decrease in the noise level in the soft shadows below the bunny as we increase the number of sampling rate.  </p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/3-1.png" width="480px" />
+                    <figcaption align="middle">1 sample per light</figcaption>
+                    <td align="middle">
+                    <img src="images/3-2.png" width="480px" />
+                    <figcaption align="middle">4 sample per light</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/3-3.png" width="480px" />
+                    <figcaption align="middle">16 sample per light</figcaption>
+                    <td align="middle">
+                    <img src="images/3-4.png" width="480px" />
+                    <figcaption align="middle">64 sample per light</figcaption>
+                </tr>
+            </table>
+        </div>
+    <p> In contrast with Uniform Hemisphere Sampling, Importance Sampling over Lights clearly does a much better job in reducing noise. This reflects the fact that the probability distribution over sampling directions in Importance Sampling closely matches the amplitude of the function whose integral we intend to estimate, which in this case is the (properly weighted) emitted radiance from light sources. This is known to lead to lower variance of the estimator. Intuitively, this is also clear as a large fraction of rays traced by the Uniform Hemisphere Sampling do not hit any light source and therefore leaves dark points throughout the image. </p>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/3-4.png" width="480px" />
+                    <figcaption align="middle">Importance sampling with 64 sample per light</figcaption>
+                    <td align="middle">
+                    <img src="images/3-5.png" width="480px" />
+                    <figcaption align="middle">Uniform sampling with 64 sample per light</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h2 align="middle">Part 4: Direct Illumination</h2>
+    <p> By definition, the indirect lighting on an object is the result of applying the one-bounce operator on the all lighting but emission in the scene. Therefore, we can compute the indirect lighting recursively by first sampling the direct lighting  bouncing into the outgoing direction from some other intersection using previously defined methods, and then making an recursive call to sample indirect lighting bouncing into the outgoing direction from some other intersection. For the evaluation of this infinite-dimensional path integral of radiance along possible light rays to terminate, we use Russian Roulette to implement probabilistic termination at a probability of 0.65 per call. We also record the current depth of a ray in order to terminate when its value exceeds the cut-off given by max_ray_depth. </p>
+    <h3 align="middle">Some images with global illumination with 1024 samples per pixel and max_ray_depth = 5</h3>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-1.png" width="480px" />
+                    <figcaption align="middle">Bunny with global illumination</figcaption>
+                    <td align="middle">
+                    <img src="images/4-2.png" width="480px" />
+                    <figcaption align="middle">Spheres with global illumination</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h3 align="middle">Direct v.s. Indirect illumination with 1024 samples per pixel and max_ray_depth = 5</h3>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-3.png" width="480px" />
+                    <figcaption align="middle">Spheres with direct illumination only</figcaption>
+                    <td align="middle">
+                    <img src="images/4-4.png" width="480px" />
+                    <figcaption align="middle">Spheres with indirect illumination only</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h3 align="middle">The effect of different max_ray_depth with 1024 samples per pixel</h3>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-5.png" width="480px" />
+                    <figcaption align="middle">max_ray_depth = 0</figcaption>
+                    <td align="middle">
+                    <img src="images/4-6.png" width="480px" />
+                    <figcaption align="middle">max_ray_depth = 1</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-7.png" width="480px" />
+                    <figcaption align="middle">max_ray_depth = 2</figcaption>
+                    <td align="middle">
+                    <img src="images/4-8.png" width="480px" />
+                    <figcaption align="middle">max_ray_depth = 3</figcaption>
+                </tr>
+            </table>
+            <table>
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-9.png" width="480px" />
+                    <figcaption align="middle">max_ray_depth = 100</figcaption>
+                </tr>
+            </table>
+        </div>
+    <h3 align="middle">The effect of different sample-per-pixel-rates with 4 light rays</h3>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-10.png" width="300px" />
+                    <figcaption align="middle">1 samples per pixel</figcaption>
+                    <td align="middle">
+                    <img src="images/4-11.png" width="300px" />
+                    <figcaption align="middle">2 samples per pixel</figcaption>
+                    <td align="middle">
+                    <img src="images/4-12.png" width="300px" />
+                    <figcaption align="middle">4 samples per pixel</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-13.png" width="300px" />
+                    <figcaption align="middle">8 samples per pixel</figcaption>
+                    <td align="middle">
+                    <img src="images/4-14.png" width="300px" />
+                    <figcaption align="middle">16 samples per pixel</figcaption>
+                    <td align="middle">
+                    <img src="images/4-15.png" width="300px" />
+                    <figcaption align="middle">64 samples per pixel</figcaption>
+                </tr>
+            </table>
+            <table>
+                <tr>
+                    <td align="middle">
+                    <img src="images/4-16.png" width="480px" />
+                    <figcaption align="middle">1024 samples per pixel</figcaption>
+                </tr>
+            </table>
+        </div>
+
+    <h2 align="middle">Part 5: Adaptive Sampling</h2>
+    <p> I implemented adaptive sampling method to concentrate the samples in pixels with higher noise. To do that, for every samplesPerBatch number of samples generated, I check the value of the confidence interval I for the current pixel. If it is smaller than the command-line specified value, I terminate the sampling for this pixel. However, to avoid accidental convergence, I require each pixel must be sampled at least samplesPerBatch number of times. Below is an instance of the image generated by the adaptive sampling and the associated distribution of the number of samples generated. The image is rendered with 2048 smaples per pixel, 1 sample per light, and max ray depth of 5.</p>
+    <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/5-1.png" width="480px" />
+                    <figcaption align="middle">Bunny image rendered via adaptive sampling</figcaption>
+                    <td align="middle">
+                    <img src="images/5-2.png" width="480px" />
+                    <figcaption align="middle">Distribution of sample rates</figcaption>
+                </tr>
+            </table>
+        </div>
+</body>
+</html>
+
+
+
+

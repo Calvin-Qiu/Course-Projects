@@ -1,2 +1,2 @@
-# project-fa19
-CS 170 Fall 2019 Project
+This is an Integer Linear Progamming based solver for the following NP-hard optimization problem called Drive the TAs Home:
+Formally, you are given an undirected graph G = (L,E) where each vertex in L is a location. You are also given a starting location s, and a list H of unique locations that correspond to homes. The weight of each edge (u, v) is the length of the road between locations u and v, and each home in H denotes a location that is inhabited by a TA. Traveling along a road takes energy, and the amount of energy expended is proportional to the length of the road. For every unit of distance traveled, the driver of the car expends 2/3 units of energy, and a walking TA expends 1 unit of energy. The car must start and end at s, and every TA must return to their home in H. The complete spec of the project can be found here: https://cs170.org/assets/project/spec.pdf
